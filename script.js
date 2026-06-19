@@ -88,7 +88,7 @@
   const validators = {
     name: (v) => (v.trim().length >= 2 ? "" : "Please enter your name."),
     email: (v) => (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()) ? "" : "Enter a valid email address."),
-    message: (v) => (v.trim().length >= 10 ? "" : "Message should be at least 10 characters."),
+    message: (v) => (v.trim().length >= 3 ? "" : "Message should be at least 3 characters."),
   };
 
   const setError = (field, msg) => {
@@ -107,7 +107,13 @@
     });
   });
 
-  form.addEventListener("submit", (e) => {
+  // Messages are delivered to this email via FormSubmit (no signup, no key).
+  // To receive at a different address, just change the email below.
+  // NOTE: the very first submission triggers a one-time confirmation email
+  // from FormSubmit — click the link in it once to activate delivery.
+  const CONTACT_EMAIL = "sanjaychowdry11@gmail.com";
+
+  form.addEventListener("submit", async (e) => {
     e.preventDefault();
     let valid = true;
     $$("#contactForm [name]").forEach((field) => {
@@ -123,13 +129,37 @@
       return;
     }
 
-    // No backend — simulate a successful send.
+    const submitBtn = $("#contactForm button[type='submit']");
     status.textContent = "Sending…";
-    setTimeout(() => {
-      form.reset();
-      status.textContent = "Thanks! Your message has been sent. 🎉";
-      status.classList.add("success");
-    }, 800);
+    if (submitBtn) submitBtn.disabled = true;
+
+    try {
+      const res = await fetch("https://formsubmit.co/ajax/" + encodeURIComponent(CONTACT_EMAIL), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          name: $("#name").value.trim(),
+          email: $("#email").value.trim(),
+          message: $("#message").value.trim(),
+          _subject: "New message from your portfolio site",
+          _template: "table",
+        }),
+      });
+      const data = await res.json();
+      if (data.success === "true" || data.success === true) {
+        form.reset();
+        status.textContent = "Thanks! Your message has been sent. 🎉";
+        status.classList.add("success");
+      } else {
+        throw new Error(data.message || "Send failed");
+      }
+    } catch (err) {
+      status.textContent =
+        "Sorry, something went wrong. Please email " + CONTACT_EMAIL + " directly.";
+      status.classList.add("error");
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
   });
 
   /* ---------- Footer year ---------- */
